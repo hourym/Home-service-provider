@@ -1,0 +1,212 @@
+Connection :
+Imports CrystalDecisions.CrystalReports.Engine
+Imports CrystalDecisions.Shared
+Imports CrystalDecisions.ReportSource
+Imports CrystalDecisions.Windows.Forms
+Imports System.Data.SqlClient
+Imports System.Drawing.Drawing2D
+ 
+
+
+Module modConnectionNode
+
+    Public sqlDT_for_Due_Amount As New DataTable
+
+    'Crystal Report Parameter
+    Public crpSharedDate As New CrystalDecisions.Shared.ParameterDiscreteValue
+
+    Public crpBusinessName As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpBusinessAddress As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpTelephone As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpEmail As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpSlogan As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpDeletedDate As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpDeletedTime As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpDeletedBy As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpRemainingBalance As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpDeliveryLocation As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpTotalInDollars As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_Name As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_Year As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_Plate As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_Color As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_KM As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public crpCar_Chassis As New CrystalDecisions.Shared.ParameterDiscreteValue
+    Public sqlDT As New DataTable
+    Public sqlDTx As New DataTable
+    Public CnString As String
+    Public LOGID As Integer
+    Public sqlSTR As String
+    Public username As String
+    Public EMP_ID As Double
+    Public EMP_NAME As String
+    Public xUserPassword As String
+    Public xUser_ID As Integer
+    Public Can_Delete_APPOINTMENT As Boolean = False
+    Public sqlDT_Receipt As New DataTable
+
+    Public Function checkServer() As Boolean
+        Dim sqlCon As New SqlConnection
+        Try
+
+
+
+            CnString = "Data Source=.;Initial Catalog=ServiceProvider;Integrated Security=True"
+
+            sqlCon.ConnectionString = CnString
+            sqlCon.Open()
+            checkServer = True
+        Catch ex As Exception
+            checkServer = False
+            MsgBox("Error : " & ex.Message)
+            End
+        End Try
+    End Function
+
+    Public Function GetCustomerProjectsDataSet() As DataSet
+        ' Connection string for connecting to your database
+        Dim connectionString As String = CnString
+
+
+        Dim query As String = "SELECT " &
+            "c.customer_name, " &
+            "cp.project_name, " &
+            "ct.name AS city_name, " &
+            "cp.address name, " &
+            "cp.status " &
+            "FROM " &
+            "dbo.tbl_customer_projects cp " &
+            "INNER JOIN " &
+            "dbo.tbl_customer c ON cp.customer_id = c.customer_id " &
+            "INNER JOIN " &
+            "dbo.tbl_Cities ct ON cp.CityID = ct.CityID"
+
+        '       Dim query As String = " SELECT 															" & _
+        '" 	c.customer_name,                                                " & _
+        '" 	cp.project_name,                                                " & _
+        '" 	ct.name ,                                           " & _
+        '" 	cp.address,                                                     " & _
+        '" 	cp.status                                                       " & _
+        '" FROM                                                              " & _
+        '" 	dbo.tbl_customer_projects cp                                    " & _
+        '" INNER JOIN                                                        " & _
+        '" 	dbo.tbl_customer c ON cp.customer_id = c.customer_id            " & _
+        '" INNER JOIN                                                        " & _
+        '" 	dbo.tbl_Cities ct ON cp.CityID = ct.CityID                      " & _
+        '" GROUP BY                                                          " & _
+        '" 	c.customer_name,                                                " & _
+        '" 	cp.project_name,                                                " & _
+        '" 	ct.name,                                                        " & _
+        '" 	cp.address,                                                     " & _
+        '" 	cp.status                                                      "
+
+        ' Create a new dataset
+        Dim dataset As New DataSet()
+
+        ' Create a new SqlConnection using the connection string
+        Using connection As New SqlConnection(connectionString)
+            ' Create a new SqlDataAdapter with the query and connection
+            Dim adapter As New SqlDataAdapter(query, connection)
+
+            ' Fill the dataset with the result of the query
+            adapter.Fill(dataset)
+        End Using
+
+        ' Return the dataset
+        Return dataset
+    End Function
+    Public Function GetCustomerProjectCostDataSet(ByVal project_id As Double) As DataSet
+        ' Connection string for connecting to your database
+        Dim connectionString As String = CnString
+
+
+        Dim query As String = " SELECT        dbo.tbl_customer.customer_name, dbo.tbl_customer_projects.project_name, dbo.tbl_customer_projects.address, dbo.tbl_Cities.name,				" & _
+ "  dbo.tbl_ServiceProviders.Name AS Provider_name, dbo.tbl_Services.ServiceName,                                                                            " & _
+ " 						 dbo.tbl_assign_project_provider.cost, dbo.tbl_customer_projects.project_id, dbo.tbl_customer.customer_id     ,tbl_assign_project_provider.status " & _
+ " FROM            dbo.tbl_customer INNER JOIN                                                                                                               " & _
+ " 						 dbo.tbl_customer_projects ON dbo.tbl_customer.customer_id = dbo.tbl_customer_projects.customer_id INNER JOIN                       " & _
+ " 						 dbo.tbl_Cities ON dbo.tbl_customer_projects.CityID = dbo.tbl_Cities.CityID INNER JOIN                                              " & _
+ " 						 dbo.tbl_assign_project_provider ON dbo.tbl_customer_projects.project_id = dbo.tbl_assign_project_provider.project_id INNER JOIN    " & _
+ " 						 dbo.tbl_ServiceProviders ON dbo.tbl_assign_project_provider.srv_provider_id = dbo.tbl_ServiceProviders.Srv_provider_id INNER JOIN  " & _
+ " 						 dbo.tbl_Services ON dbo.tbl_ServiceProviders.ServiceID = dbo.tbl_Services.ServiceID  where tbl_customer_projects.project_id= " & project_id & "         "
+
+
+        ' Create a new dataset
+        Dim dataset As New DataSet()
+
+        ' Create a new SqlConnection using the connection string
+        Using connection As New SqlConnection(connectionString)
+            ' Create a new SqlDataAdapter with the query and connection
+            Dim adapter As New SqlDataAdapter(query, connection)
+
+            ' Fill the dataset with the result of the query
+            adapter.Fill(dataset)
+        End Using
+
+        ' Return the dataset
+        Return dataset
+    End Function
+
+    Public Function str_repl(ByVal str As String)
+        Return Replace(Replace(Replace(str, "'", ""), ",", ","), "`", "")
+    End Function
+    Public Function str_repl_comma(ByVal str As String)
+        Return str.Replace(",", ".")
+    End Function
+
+    Public Function ExecuteSQLQuery(ByVal SQLQuery As String) As DataTable
+        Try
+            Dim sqlCon As New SqlConnection(CnString)
+            Dim sqlDA As New SqlDataAdapter(SQLQuery, sqlCon)
+            Dim sqlCB As New SqlCommandBuilder(sqlDA)
+            sqlDT.Reset() ' refresh 
+            sqlDA.Fill(sqlDT)
+        Catch ex As Exception
+            MsgBox("Error : " & ex.Message)
+        End Try
+        Return sqlDT
+    End Function
+
+    Public Sub FillDataGrid(ByVal sql As String, ByVal dgv As DataGridView)
+        Dim conn As SqlConnection = New SqlConnection(CnString)
+        Try
+            conn.Open()
+            Dim cmd As SqlCommand = New SqlCommand(sql, conn)
+            Dim adp As New SqlDataAdapter
+            Dim dt As New DataTable
+            adp.SelectCommand = cmd
+            adp.Fill(dt)
+            dgv.DataSource = dt
+            adp.Dispose()
+            cmd.Dispose()
+        Catch ex As Exception
+            MsgBox("Error:" & ex.ToString)
+        Finally
+            conn.Close()
+        End Try
+    End Sub
+
+    Public Sub FillDataComboBox(ByVal sql As String, ByVal Value_Member As String, ByVal Display_Member As String, ByVal combo As ComboBox)
+        Dim dt As DataTable = New DataTable()
+        Using connection = New SqlConnection(CnString)
+            Using cmd = New SqlCommand(sql, connection)
+                connection.Open()
+                Try
+                    dt.Load(cmd.ExecuteReader())
+                Catch e As SqlException
+                    MessageBox.Show(" Error : " & e.ToString())
+                End Try
+            End Using
+        End Using
+        combo.DataSource = dt
+        combo.ValueMember = Value_Member
+        combo.DisplayMember = Display_Member
+    End Sub
+    Public Function num_fltr(ByVal value As String)
+        If Not IsNumeric(value) Then
+            Return 0
+        Else
+            Return value
+        End If
+    End Function
+End Module
