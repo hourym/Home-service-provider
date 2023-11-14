@@ -1,0 +1,593 @@
+Imports System.IO
+Imports System.Data.SqlClient
+Public Class frmCustomersProjects
+    Dim x, y As Integer
+    Dim newpoint As New Point
+    Public Customer_Id As New Double
+    Public Projectid As New Double
+    Private status_project As String = ""
+    Private Sub lblCaption_MouseDown(ByVal sender As Object, ByVal e As System.Windows.Forms.MouseEventArgs) Handles lblCaption.MouseDown
+        x = Control.MousePosition.X - Me.Location.X
+        y = Control.MousePosition.Y - Me.Location.Y
+    End Sub
+
+    Private Sub lblCaption_MouseMove(ByVal sender As Object, ByVal e As System.Windows.Forms.MouseEventArgs) Handles lblCaption.MouseMove
+        If e.Button = Windows.Forms.MouseButtons.Left Then
+            newpoint = Control.MousePosition
+            newpoint.X -= x
+            newpoint.Y -= y
+            Me.Location = newpoint
+            Application.DoEvents()
+        End If
+    End Sub
+    Private Sub btnClose_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnClose.Click
+        Customer_Id = Nothing
+        Me.Close()
+    End Sub
+    Private Sub btnExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnExit.Click
+        Customer_Id = Nothing
+        Me.Close()
+    End Sub
+    Private Sub btnSave_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnSave.Click
+        If txtProjectName.Text = "" Then
+            MsgBox("Required:PROJECT NAME", MsgBoxStyle.Information, "Information")
+        ElseIf cmbCity.SelectedIndex = -1 Then
+            MsgBox("Required: CITY", MsgBoxStyle.Information, "Information")
+        ElseIf txtAddress.Text = "" Then
+            MsgBox("Required: address", MsgBoxStyle.Information, "Information")
+
+        Else
+            If btnSave.Text = "SAVE" Then
+                ExecuteSQLQuery(" INSERT INTO tbl_customer_projects (project_name,customer_id ,cityid ,address,note) " & _
+                                " VALUES( '" & txtProjectName.Text & "' ,'" & Customer_Id & "' ,'" & cmbCity.SelectedValue & "' ,'" & txtAddress.Text & "' ,'" & txtNote.Text & "' )")
+                txtProjectID.Text = ""
+                txtProjectName.Text = ""
+                cmbCity.SelectedIndex = -1
+                txtAddress.Text = ""
+
+                txtNote.Text = ""
+                MsgBox("New record has been added on database successfully.", MsgBoxStyle.Information, "Information")
+                loadProjects(Customer_Id)
+            ElseIf btnSave.Text = "UPDATE" Then
+                ExecuteSQLQuery(" UPDATE tbl_customer_projects SET project_name='" & str_repl(txtProjectName.Text) & "' , cityid='" & cmbCity.SelectedValue & "' ,address='" & str_repl(txtAddress.Text) & "'  ,note ='" & txtNote.Text & "'  " & _
+                                " WHERE project_id=" & txtProjectID.Text & " ")
+                txtProjectID.Text = ""
+                txtProjectName.Text = ""
+                cmbCity.SelectedIndex = -1
+                txtAddress.Text = ""
+                txtNote.Text = ""
+                MsgBox("Record updated successful.", MsgBoxStyle.Information, "Information")
+                loadProjects(Customer_Id)
+            End If
+        End If
+    End Sub
+    Private Sub loadProjects(ByVal Customer_Id As Double)
+        Dim qry As String = " SELECT      tbl_customer_projects.project_id,   tbl_customer_projects.customer_id, tbl_customer_projects.project_name, tbl_customer_projects.address,tbl_Cities.name as [City], tbl_customer_projects.note,tbl_customer_projects.status,  tbl_Cities.CityID" & _
+                           " FROM            tbl_customer_projects INNER JOIN " & _
+                           " tbl_Cities ON tbl_customer_projects.CityID = tbl_Cities.CityID   where customer_id= '" & Customer_Id & "' order by project_name asc "
+        FillDataGrid(qry, dgv)
+        If dgv.Rows.Count > 0 Then
+            lblCount.Text = "Total " & dgv.Rows.Count & " found."
+        Else
+            lblCount.Text = "Total 0  found."
+        End If
+    End Sub
+
+    Private Sub btnRefresh_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnRefresh.Click
+        loadProjects(Customer_Id)
+    End Sub
+
+    Private Sub dgv_CellContentClick(sender As System.Object, e As System.Windows.Forms.DataGridViewCellEventArgs) Handles dgv.CellContentClick
+        Dim columnName As String = dgv.Columns(e.ColumnIndex).Name
+        If columnName = "EDIT" Then
+            If MsgBox("Are you sure to edit ?", MsgBoxStyle.YesNo + MsgBoxStyle.Exclamation, "Confirm..") = MsgBoxResult.Yes Then
+                Dim qry As String = " SELECT      tbl_customer_projects.project_id  ,tbl_customer_projects.customer_id, tbl_customer_projects.project_name, tbl_customer_projects.address,tbl_Cities.name as [City],tbl_customer_projects.note,  tbl_Cities.CityID" & _
+                        " FROM            tbl_customer_projects INNER JOIN " & _
+                        " tbl_Cities ON tbl_customer_projects.CityID = tbl_Cities.CityID  WHERE project_id=" & dgv.CurrentRow.Cells("project_id").Value & " "
+
+                ExecuteSQLQuery(qry)
+                txtProjectID.Text = sqlDT.Rows(0)("project_id")
+                txtProjectName.Text = sqlDT.Rows(0)("project_name")
+                cmbCity.SelectedValue = sqlDT.Rows(0)("CityID")
+                txtAddress.Text = sqlDT.Rows(0)("address")
+                txtNote.Text = sqlDT.Rows(0)("note")
+
+                btnSave.Text = "UPDATE"
+            End If
+        ElseIf columnName = "DELETE" Then
+            If MsgBox("Are you sure to delete ?", MsgBoxStyle.YesNo + MsgBoxStyle.Exclamation, "Confirm..") = MsgBoxResult.Yes Then
+                ExecuteSQLQuery("delete  tbl_customer_projects WHERE project_id=" & dgv.CurrentRow.Cells("project_id").Value & " ")
+                loadProjects(Customer_Id)
+            End If
+
+        ElseIf columnName = "DELETE" Then
+            If MsgBox("Are you sure to delete ?", MsgBoxStyle.YesNo + MsgBoxStyle.Exclamation, "Confirm..") = MsgBoxResult.Yes Then
+                ExecuteSQLQuery("delete  tbl_customer_projects WHERE project_id=" & dgv.CurrentRow.Cells("project_id").Value & " ")
+                loadProjects(Customer_Id)
+            End If
+        ElseIf columnName = "ASSIGNPROVIDERS" Then
+
+            With frmServiceProviderSearch
+                .lblCaption.Text = "ASSIGN PROVIDERS"
+                .Project_id = dgv.CurrentRow.Cells("project_id").Value
+                .MdiParent = frmMDIParent
+                '  .Show()
+                .PerformShownLogic()
+                .WindowState = FormWindowState.Normal
+                .Show()
+                .Activate() ' Bring the form to the front
+            End With
+        ElseIf columnName = "PROVIDERS" Then
+
+            With frmAssignedProvider
+                .Project_id = dgv.CurrentRow.Cells("project_id").Value
+                .MdiParent = frmMDIParent
+                '  .Show()
+                .ShownAssignedProvider(dgv.CurrentRow.Cells("project_id").Value)
+                .WindowState = FormWindowState.Normal
+                .Show()
+                .Activate() ' Bring the form to the front
+            End With
+        ElseIf columnName = "Status" Then
+            Customer_Id = dgv.CurrentRow.Cells("customerid").Value
+            Projectid = dgv.CurrentRow.Cells("project_id").Value
+            Dim inputBoxResult As DialogResult = ShowInputDialogStatus("Select Status", "Status of the project", status_project)
+            If inputBoxResult = DialogResult.Cancel Then
+                Exit Sub
+            End If
+            loadProjects(Customer_Id)
+        End If
+    End Sub
+    Private Sub frmcustomers_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+        FillDataComboBox("select CityID,name from tbl_cities ", "CityID", "name", cmbCity)
+        cmbCity.SelectedIndex = -1
+        loadProjects(Customer_Id)
+    End Sub
+
+
+    Public Function ShowInputDialogStatus(ByVal prompt As String, ByVal title As String, ByRef inputValue As String) As DialogResult
+        Using form As New Form()
+            form.FormBorderStyle = FormBorderStyle.FixedDialog
+            form.MinimizeBox = False
+            form.MaximizeBox = False
+            form.BackColor = Color.SteelBlue
+            form.StartPosition = FormStartPosition.CenterParent
+            form.ClientSize = New Size(300, 200)
+            form.Text = title
+
+            Dim lblPrompt As New Label() With {.Left = 20, .Top = 30, .Width = 260, .Text = prompt, .ForeColor = Color.White}
+            Dim cboInput As New ComboBox() With {.Left = 20, .Top = 50, .Width = 100}
+            cboInput.Items.AddRange({"closed", "status2", "status3", "status4", "status5"})
+
+            Dim btnOK As Button
+            Dim btnCancel As Button
+
+            btnOK = New Button() With {.Text = "OK", .Left = 50, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            btnCancel = New Button() With {.Text = "Cancel", .Left = 180, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            form.Controls.Add(lblPrompt)
+            form.Controls.Add(cboInput)
+            form.Controls.Add(btnOK)
+            form.Controls.Add(btnCancel)
+
+            btnCancel.BackColor = Color.White
+            btnOK.BackColor = Color.White
+
+            Dim dialogResult As DialogResult = dialogResult.None ' Initialize the dialog result variable
+
+            AddHandler btnOK.Click, AddressOf OKButton_Click
+
+            AddHandler btnCancel.Click, Sub()
+                                            form.DialogResult = dialogResult.Cancel
+                                        End Sub
+
+            ' Check if the record exists and retrieve the existing cost value
+            Dim connectionString As String = CnString
+            Dim selectQuery As String = "SELECT status FROM tbl_customer_projects WHERE project_id = @projectId AND customer_id = @customer_id"
+
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+
+                Dim command As New SqlCommand(selectQuery, connection)
+                command.Parameters.AddWithValue("@projectId", Projectid)
+                command.Parameters.AddWithValue("@customer_id", Customer_Id)
+
+                Dim existingStatus As Object = command.ExecuteScalar()
+
+                If existingStatus IsNot Nothing AndAlso Not IsDBNull(existingStatus) Then
+                    ' Existing record found, fill cboInput with existing status value
+                    cboInput.SelectedItem = existingStatus.ToString
+                End If
+            End Using
+
+            dialogResult = form.ShowDialog() ' Get the dialog result of the form
+
+            Return dialogResult
+        End Using
+    End Function
+
+    Private Sub OKButton_Click(ByVal sender As Object, ByVal e As EventArgs)
+        Dim btnOK As Button = DirectCast(sender, Button)
+        Dim form As Form = DirectCast(btnOK.FindForm(), Form)
+        Dim cmbInput As ComboBox = form.Controls.OfType(Of ComboBox)().FirstOrDefault()
+        If cmbInput.SelectedIndex = -1 Then
+            MsgBox("Required: Status", MsgBoxStyle.Information, "Information")
+            Exit Sub
+        End If
+        Dim connectionString As String = CnString
+        Dim query As String = "SELECT COUNT(*) FROM tbl_customer_projects WHERE project_id = @projectId AND customer_id = @customer_id"
+        '   Dim insertQuery As String = "INSERT INTO tbl_assign_project_provider (project_id, srv_provider_id, cost) VALUES (@projectId, @providerId, @cost)"
+        Dim updateQuery As String = "UPDATE tbl_customer_projects SET status = @status WHERE project_id = @projectId AND Customer_Id = @Customer_Id"
+
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+            ' Check if the record exists
+            Dim command As New SqlCommand(query, connection)
+            command.Parameters.AddWithValue("@projectId", Projectid)
+            command.Parameters.AddWithValue("@customer_id", Customer_Id)
+
+            Dim recordExists As Integer = Convert.ToInt32(command.ExecuteScalar())
+
+            If recordExists > 0 Then
+                ' Update the existing record
+                Dim updateCommand As New SqlCommand(updateQuery, connection)
+                updateCommand.Parameters.AddWithValue("@projectId", Projectid)
+                updateCommand.Parameters.AddWithValue("@customer_id", Customer_Id)
+                updateCommand.Parameters.AddWithValue("@status", cmbInput.SelectedItem)
+
+                updateCommand.ExecuteNonQuery()
+            Else
+                ' Insert a new record
+            End If
+        End Using
+
+        form.DialogResult = DialogResult.OK
+    End Sub
+
+End Class
+
+
+ASSIGN PROVIDER : 
+
+Imports System.IO
+Imports System.Data.SqlClient
+Public Class frmAssignedProvider
+    Dim x, y As Integer
+    Dim newpoint As New Point
+    Public Project_id As New Double
+    Private status_project As String = ""
+    Private rate_provider As String = ""
+    Public Provider_id As New Double
+    Private Sub lblCaption_MouseDown(ByVal sender As Object, ByVal e As System.Windows.Forms.MouseEventArgs) Handles lblCaption.MouseDown
+        x = Control.MousePosition.X - Me.Location.X
+        y = Control.MousePosition.Y - Me.Location.Y
+    End Sub
+
+    Private Sub lblCaption_MouseMove(ByVal sender As Object, ByVal e As System.Windows.Forms.MouseEventArgs) Handles lblCaption.MouseMove
+        If e.Button = Windows.Forms.MouseButtons.Left Then
+            newpoint = Control.MousePosition
+            newpoint.X -= x
+            newpoint.Y -= y
+            Me.Location = newpoint
+            Application.DoEvents()
+        End If
+    End Sub
+    Private Sub loadServiceProviderProject()
+
+        'Dim qry As String
+        'qry = "SELECT        tbl_ServiceProviders.Srv_provider_id, tbl_ServiceProviders.Name, tbl_ServiceProviders.Mobile, tbl_ServiceProviders.RatePerHour, tbl_ServiceProviders.CityID, tbl_ServiceProviders.ServiceID, tbl_ServiceProviders.note, " & _
+        '              "   tbl_Cities.name AS City, tbl_Services.ServiceName as Service " & _
+        '               "  FROM            tbl_ServiceProviders INNER JOIN " & _
+        '               "   tbl_Cities ON tbl_ServiceProviders.CityID = tbl_Cities.CityID INNER JOIN " & _
+        '               "   tbl_Services ON tbl_ServiceProviders.ServiceID = tbl_Services.ServiceID  WHERE 1 = 0 "
+
+        'FillDataGrid(qry, dgv)
+        '' ExecuteSQLQuery("SELECT * FROM tbl_services")
+        'If dgv.Rows.Count > 0 Then
+        '    lblCount.Text = "Total " & dgv.Rows.Count & " services found."
+        'Else
+        '    lblCount.Text = "Total 0 service found."
+        'End If
+
+    End Sub
+    Public Sub ShownAssignedProvider(ByVal ProjectId As Double)
+        Dim qry As String
+        qry = " SELECT																													" & _
+ " 	tbl_assign_project_provider.project_id,                                                                                 " & _
+ " 	tbl_ServiceProviders.Srv_provider_id,                                                                                   " & _
+ " 	tbl_ServiceProviders.Name,                                                                                              " & _
+ " 	tbl_ServiceProviders.Mobile,                                                                                            " & _
+ " 	tbl_Services.ServiceName,                                                                                               " & _
+ " 	tbl_assign_project_provider.cost,                                                                                       " & _
+ " 	tbl_assign_project_provider.status,                                                                                     " & _
+ " 	tbl_assign_project_provider.rate_provider                                                                               " & _
+ " FROM                                                                                                                      " & _
+ " 	dbo.tbl_ServiceProviders                                                                                                " & _
+ " JOIN                                                                                                                      " & _
+ " 	dbo.tbl_assign_project_provider ON tbl_ServiceProviders.Srv_provider_id = tbl_assign_project_provider.srv_provider_id   " & _
+ " JOIN                                                                                                                      " & _
+ " 	dbo.tbl_Services ON tbl_ServiceProviders.ServiceID = tbl_Services.ServiceID        where     tbl_assign_project_provider.project_id  = '" & ProjectId & "'   "
+        FillDataGrid(qry, dgv)
+        If dgv.Rows.Count > 0 Then
+            lblCount.Text = "Total " & dgv.Rows.Count & "  found."
+        Else
+            lblCount.Text = "Total 0 service found."
+        End If
+        GetTotalCost()
+    End Sub
+
+
+
+    Private Sub frmService_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+        'FillDataComboBox("select CityID,name from tbl_cities ", "CityID", "name", cmbCity)
+        'cmbCity.SelectedIndex = -1
+        'FillDataComboBox("select Serviceid,ServiceName from tbl_services ", "Serviceid", "ServiceName", cmbService)
+        'cmbService.SelectedIndex = -1
+        'txtName.Select()
+        '  loadServiceProvider()
+      
+    End Sub
+
+    Private Sub dgv_CellContentClick(sender As System.Object, e As System.Windows.Forms.DataGridViewCellEventArgs) Handles dgv.CellContentClick
+        Dim columnName As String = dgv.Columns(e.ColumnIndex).Name
+        If columnName = "Status" Then
+            Provider_id = dgv.CurrentRow.Cells("Srv_provider_id").Value
+           
+            Dim inputBoxResult As DialogResult = ShowInputDialogStatus("Select Status", "Status of the project", status_project)
+            If inputBoxResult = DialogResult.Cancel Then
+                Exit Sub
+            End If
+            ShownAssignedProvider(Project_id)
+        ElseIf columnName = "Rate" Then
+            Provider_id = dgv.CurrentRow.Cells("Srv_provider_id").Value
+            Dim inputBoxResult As DialogResult = ShowInputDialogRate("Select Rate", "Rate the provider", status_project)
+            If inputBoxResult = DialogResult.Cancel Then
+                Exit Sub
+            End If
+            ShownAssignedProvider(Project_id)
+        End If
+    End Sub
+
+    Private Sub GetTotalCost()
+        Dim query As String = "SELECT SUM(tbl_assign_project_provider.cost) AS TotalCost " &
+                              "FROM dbo.tbl_ServiceProviders " &
+                              "JOIN dbo.tbl_assign_project_provider ON tbl_ServiceProviders.Srv_provider_id = tbl_assign_project_provider.srv_provider_id " &
+                              "JOIN dbo.tbl_Services ON tbl_ServiceProviders.ServiceID = tbl_Services.ServiceID " &
+                              "WHERE tbl_assign_project_provider.project_id = '7'"
+
+        Using connection As New SqlConnection(CnString)
+            Using command As New SqlCommand(query, connection)
+                connection.Open()
+
+                Dim result As Object = command.ExecuteScalar()
+                If result IsNot DBNull.Value Then
+                    lblSumCost.Text = "Total Cost: " & Convert.ToDouble(result).ToString()
+                End If
+            End Using
+        End Using
+    End Sub
+
+    Private Sub btnClose_Click(sender As System.Object, e As System.EventArgs) Handles btnClose.Click
+        Me.Close()
+    End Sub
+
+    Public Function ShowInputDialogStatus(ByVal prompt As String, ByVal title As String, ByRef inputValue As String) As DialogResult
+        Using form As New Form()
+            form.FormBorderStyle = FormBorderStyle.FixedDialog
+            form.MinimizeBox = False
+            form.MaximizeBox = False
+            form.BackColor = Color.SteelBlue
+            form.StartPosition = FormStartPosition.CenterParent
+            form.ClientSize = New Size(300, 200)
+            form.Text = title
+
+            Dim lblPrompt As New Label() With {.Left = 20, .Top = 30, .Width = 260, .Text = prompt, .ForeColor = Color.White}
+            Dim cboInput As New ComboBox() With {.Left = 20, .Top = 50, .Width = 100}
+            cboInput.Items.AddRange({"status1", "status2", "status3", "status4", "status5"})
+
+
+            Dim btnOK As Button
+            Dim btnCancel As Button
+
+
+            btnOK = New Button() With {.Text = "OK", .Left = 50, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            btnCancel = New Button() With {.Text = "Cancel", .Left = 180, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            form.Controls.Add(lblPrompt)
+            form.Controls.Add(cboInput)
+            form.Controls.Add(btnOK)
+            form.Controls.Add(btnCancel)
+
+
+
+            btnCancel.BackColor = Color.White
+            btnOK.BackColor = Color.White
+
+
+            Dim dialogResult As DialogResult = dialogResult.None ' Initialize the dialog result variable
+
+            AddHandler btnOK.Click, AddressOf OKButton_Click
+
+
+            AddHandler btnCancel.Click, Sub()
+                                            form.DialogResult = dialogResult.Cancel
+                                        End Sub
+
+            ' Check if the record exists and retrieve the existing cost value
+            Dim connectionString As String = CnString
+            Dim selectQuery As String = "SELECT status FROM tbl_assign_project_provider WHERE project_id = @projectId AND srv_provider_id = @providerId"
+
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+
+                Dim command As New SqlCommand(selectQuery, connection)
+                command.Parameters.AddWithValue("@projectId", Project_id)
+                command.Parameters.AddWithValue("@providerId", Provider_id)
+
+                Dim existingStatus As Object = command.ExecuteScalar()
+
+                If existingStatus IsNot Nothing AndAlso Not IsDBNull(existingStatus) Then
+                    ' Existing record found, fill cboInput with existing status value
+                    cboInput.SelectedItem = existingStatus.ToString
+                End If
+            End Using
+
+            dialogResult = form.ShowDialog() ' Get the dialog result of the form
+
+            Return dialogResult
+        End Using
+    End Function
+
+    Private Sub OKButton_Click(ByVal sender As Object, ByVal e As EventArgs)
+        Dim btnOK As Button = DirectCast(sender, Button)
+        Dim form As Form = DirectCast(btnOK.FindForm(), Form)
+        Dim cmbInput As ComboBox = form.Controls.OfType(Of ComboBox)().FirstOrDefault()
+        If cmbInput.SelectedIndex = -1 Then
+            MsgBox("Required: Status", MsgBoxStyle.Information, "Information")
+            Exit Sub
+        End If
+        Dim connectionString As String = CnString
+        Dim query As String = "SELECT COUNT(*) FROM tbl_assign_project_provider WHERE project_id = @projectId AND srv_provider_id = @providerId"
+        '   Dim insertQuery As String = "INSERT INTO tbl_assign_project_provider (project_id, srv_provider_id, cost) VALUES (@projectId, @providerId, @cost)"
+        Dim updateQuery As String = "UPDATE tbl_assign_project_provider SET status = @status WHERE project_id = @projectId AND srv_provider_id = @providerId"
+
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+
+            ' Check if the record exists
+            Dim command As New SqlCommand(query, connection)
+            command.Parameters.AddWithValue("@projectId", Project_id)
+            command.Parameters.AddWithValue("@providerId", Provider_id)
+
+            Dim recordExists As Integer = Convert.ToInt32(command.ExecuteScalar())
+
+            If recordExists > 0 Then
+
+                ' Update the existing record
+                Dim updateCommand As New SqlCommand(updateQuery, connection)
+                updateCommand.Parameters.AddWithValue("@projectId", Project_id)
+                updateCommand.Parameters.AddWithValue("@providerId", Provider_id)
+                updateCommand.Parameters.AddWithValue("@status", cmbInput.SelectedItem)
+
+                updateCommand.ExecuteNonQuery()
+            Else
+                ' Insert a new record
+             
+            End If
+        End Using
+
+        form.DialogResult = DialogResult.OK
+    End Sub
+
+    Public Function ShowInputDialogRate(ByVal prompt As String, ByVal title As String, ByRef inputValue As String) As DialogResult
+        Using form As New Form()
+            form.FormBorderStyle = FormBorderStyle.FixedDialog
+            form.MinimizeBox = False
+            form.MaximizeBox = False
+            form.BackColor = Color.SteelBlue
+            form.StartPosition = FormStartPosition.CenterParent
+            form.ClientSize = New Size(300, 200)
+            form.Text = title
+
+            Dim lblPrompt As New Label() With {.Left = 20, .Top = 30, .Width = 260, .Text = prompt, .ForeColor = Color.White}
+            Dim cboInput As New ComboBox() With {.Left = 20, .Top = 50, .Width = 100}
+            cboInput.Items.AddRange({"rate1", "rate2", "rate3", "rate4", "rate5"})
+
+            Dim btnOK As Button
+            Dim btnCancel As Button
+
+            btnOK = New Button() With {.Text = "OK", .Left = 50, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            btnCancel = New Button() With {.Text = "Cancel", .Left = 180, .Width = 75, .Top = 150, .ForeColor = Color.Gray, .Font = New Font(Font.FontFamily, Font.Size, FontStyle.Bold)}
+
+            form.Controls.Add(lblPrompt)
+            form.Controls.Add(cboInput)
+            form.Controls.Add(btnOK)
+            form.Controls.Add(btnCancel)
+
+            btnCancel.BackColor = Color.White
+            btnOK.BackColor = Color.White
+
+            Dim dialogResult As DialogResult = dialogResult.None ' Initialize the dialog result variable
+
+            AddHandler btnOK.Click, AddressOf OKRateButton_Click
+
+            AddHandler btnCancel.Click, Sub()
+                                            form.DialogResult = dialogResult.Cancel
+                                        End Sub
+
+            ' Check if the record exists and retrieve the existing cost value
+            Dim connectionString As String = CnString
+            Dim selectQuery As String = "SELECT rate_provider FROM tbl_assign_project_provider WHERE project_id = @projectId AND srv_provider_id = @providerId"
+
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+
+                Dim command As New SqlCommand(selectQuery, connection)
+                command.Parameters.AddWithValue("@projectId", Project_id)
+                command.Parameters.AddWithValue("@providerId", Provider_id)
+
+                Dim existingRate As Object = command.ExecuteScalar()
+
+                If existingRate IsNot Nothing AndAlso Not IsDBNull(existingRate) Then
+                    ' Existing record found, fill cboInput with existing status value
+                    cboInput.SelectedItem = existingRate.ToString
+                End If
+            End Using
+
+            dialogResult = form.ShowDialog() ' Get the dialog result of the form
+
+            Return dialogResult
+        End Using
+    End Function
+
+    Private Sub OKRateButton_Click(ByVal sender As Object, ByVal e As EventArgs)
+        Dim btnOK As Button = DirectCast(sender, Button)
+        Dim form As Form = DirectCast(btnOK.FindForm(), Form)
+        Dim cmbInput As ComboBox = form.Controls.OfType(Of ComboBox)().FirstOrDefault()
+        If cmbInput.SelectedIndex = -1 Then
+            MsgBox("Required: Status", MsgBoxStyle.Information, "Information")
+            Exit Sub
+        End If
+        Dim connectionString As String = CnString
+        Dim query As String = "SELECT COUNT(*) FROM tbl_assign_project_provider WHERE project_id = @projectId AND srv_provider_id = @providerId"
+        '   Dim insertQuery As String = "INSERT INTO tbl_assign_project_provider (project_id, srv_provider_id, cost) VALUES (@projectId, @providerId, @cost)"
+        Dim updateQuery As String = "UPDATE tbl_assign_project_provider SET rate_provider = @rate_provider WHERE project_id = @projectId AND srv_provider_id = @providerId"
+
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+
+            ' Check if the record exists
+            Dim command As New SqlCommand(query, connection)
+            command.Parameters.AddWithValue("@projectId", Project_id)
+            command.Parameters.AddWithValue("@providerId", Provider_id)
+
+            Dim recordExists As Integer = Convert.ToInt32(command.ExecuteScalar())
+
+            If recordExists > 0 Then
+
+                ' Update the existing record
+                Dim updateCommand As New SqlCommand(updateQuery, connection)
+                updateCommand.Parameters.AddWithValue("@projectId", Project_id)
+                updateCommand.Parameters.AddWithValue("@providerId", Provider_id)
+                updateCommand.Parameters.AddWithValue("@rate_provider", cmbInput.SelectedItem)
+
+                updateCommand.ExecuteNonQuery()
+            Else
+                ' Insert a new record
+              
+            End If
+        End Using
+
+        form.DialogResult = DialogResult.OK
+    End Sub
+End Class
+
+
+
+
+
+
+
